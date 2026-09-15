@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --build-arg BUILD_SHA=${{ github.sha }} \
+            -t devops-intern-final:test \
+            ./app
+
+      - name: Run container
+        run: |
+          docker run -d \
+            --name devops-test \
+            -p 8080:8080 \
+            devops-intern-final:test
+
+      - name: Health check
+        run: |
+          for i in {1..15}; do
+            if curl --fail --silent http://localhost:8080/healthz; then
+              echo "Health check passed"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Health check failed"
+          docker logs devops-test
+          exit 1
+
+      - name: Test application
+        run: |
+          curl --fail http://localhost:8080/
+          docker inspect --format='{{.Config.User}}' devops-test
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f devops-test || true
+
+  publish:
+    needs: build-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          push: true
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/devops-intern-final:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/devops-intern-final:latest
