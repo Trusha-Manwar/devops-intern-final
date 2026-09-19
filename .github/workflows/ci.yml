@@ -4,18 +4,15 @@ on:
   push:
     branches:
       - main
-      - "feature/**"
   pull_request:
     branches:
       - main
 
-permissions:
-  contents: read
-  packages: write
-
 jobs:
-  build-test:
+  lint:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -27,12 +24,55 @@ jobs:
           sudo apt-get install -y shellcheck
           shellcheck scripts/*.sh
 
+      - name: Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: app/Dockerfile
+
+  build:
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Build Docker image
         run: |
           docker build \
             --build-arg BUILD_SHA=${{ github.sha }} \
             -t devops-intern-final:test \
             ./app
+
+      - name: Save Docker image
+        run: |
+          docker save devops-intern-final:test -o image.tar
+
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: image.tar
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i image.tar
 
       - name: Run container
         run: |
@@ -50,6 +90,7 @@ jobs:
             fi
             sleep 2
           done
+
           echo "Health check failed"
           docker logs devops-test
           exit 1
@@ -61,13 +102,15 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: |
-          docker rm -f devops-test || true
+        run: docker rm -f devops-test || true
 
   publish:
-    needs: build-test
+    needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout
