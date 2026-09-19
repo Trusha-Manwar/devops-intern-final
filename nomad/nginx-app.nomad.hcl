@@ -10,6 +10,13 @@ job "nginx-app" {
   group "nginx" {
     count = 1
 
+    update {
+      max_parallel     = 1
+      min_healthy_time = "10s"
+      healthy_deadline = "2m"
+      auto_revert      = true
+    }
+
     network {
       port "http" {
         to = 8080
@@ -39,13 +46,6 @@ job "nginx-app" {
           interval = "10s"
           timeout  = "2s"
         }
-      }
-
-      update {
-        max_parallel      = 1
-        min_healthy_time  = "10s"
-        healthy_deadline  = "2m"
-        auto_revert       = true
       }
 
       restart {
