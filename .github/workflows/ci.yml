@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - "feature/**"
   pull_request:
     branches:
       - main
@@ -25,7 +26,7 @@ jobs:
           shellcheck scripts/*.sh
 
       - name: Hadolint
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3
         with:
           dockerfile: app/Dockerfile
 
@@ -47,8 +48,7 @@ jobs:
             ./app
 
       - name: Save Docker image
-        run: |
-          docker save devops-intern-final:test -o image.tar
+        run: docker save devops-intern-final:test -o image.tar
 
       - name: Upload Docker image
         uses: actions/upload-artifact@v4
@@ -84,8 +84,7 @@ jobs:
       - name: Health check
         run: |
           for i in {1..15}; do
-            if curl --fail --silent http://localhost:8080/healthz; then
-              echo "Health check passed"
+            if ./scripts/healthcheck.sh http://localhost:8080/healthz; then
               exit 0
             fi
             sleep 2
@@ -116,6 +115,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i image.tar
+
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -123,13 +130,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: ./app
-          push: true
-          build-args: |
-            BUILD_SHA=${{ github.sha }}
-          tags: |
+      - name: Tag image
+        run: |
+          docker tag devops-intern-final:test \
             ghcr.io/trusha-manwar/devops-intern-final:${{ github.sha }}
+          docker tag devops-intern-final:test \
             ghcr.io/trusha-manwar/devops-intern-final:latest
+
+      - name: Push image
+        run: |
+          docker push ghcr.io/trusha-manwar/devops-intern-final:${{ github.sha }}
+          docker push ghcr.io/trusha-manwar/devops-intern-final:latest
