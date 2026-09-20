@@ -39,6 +39,7 @@ job "nginx-app" {
       service {
         name = "nginx-app"
         port = "http"
+        provider = "consul"
 
         check {
           type     = "http"
