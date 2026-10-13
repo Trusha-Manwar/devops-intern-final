@@ -16,7 +16,7 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
 
   grafana:
-    image: grafana/grafana:12.1.1
+    image: grafana/grafana:11.6.0
     ports:
       - "3000:3000"
     depends_on:
