@@ -54,6 +54,7 @@ job "nginx-app" {
       }
 
       service {
+        provider = "nomad"
         name = "nginx-app"
         port = "http"
 

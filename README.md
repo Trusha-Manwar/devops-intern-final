@@ -154,21 +154,28 @@ Implemented components:
 
 - Git and GitHub workflow
 - Feature branch and Pull Request workflow
-- Linux shell scripts
-- ShellCheck validation
-- Docker containerization
-- NGINX configuration
-- Application health endpoint
+- Linux shell scripts and ShellCheck validation
+- Docker containerization and NGINX configuration
+- Application health endpoint (`/healthz`)
 - Non-root container execution
 - GitHub Actions CI
 - GitHub Container Registry publishing
 - `v1.0.0` release/tag
+- Nomad deployment with a healthy application allocation
+- Loki, Promtail and Grafana monitoring stack
+- Log data visible in Grafana Explore
 
-Remaining assessment components:
+## Architecture
 
-- Nomad deployment
-- Loki, Promtail and Grafana observability
-- Final architecture documentation and evidence
+1. GitHub Actions validates the project and builds the Docker image.
+2. Nomad runs the containerized NGINX application.
+3. The application exposes `/healthz` for health checks.
+4. Promtail collects container logs and sends them to Loki.
+5. Grafana queries Loki to explore collected logs.
+
+## Evidence
+
+Capture screenshots of the healthy Nomad allocation, the `/healthz` response, Grafana Explore logs, and the GitHub Actions result. Store them in a project evidence folder if required by the assessment.
 
 ## Troubleshooting
 
